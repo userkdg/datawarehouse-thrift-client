@@ -1,39 +1,20 @@
 package com.terry.impala.thrift;
 
+import com.cloudera.beeswax.api.*;
+import com.cloudera.impala.thrift.ImpalaService;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.thrift.TException;
+import org.apache.thrift.protocol.TBinaryProtocol;
+import org.apache.thrift.protocol.TProtocol;
+import org.apache.thrift.transport.TSaslClientTransport;
+import org.apache.thrift.transport.TSocket;
+import org.apache.thrift.transport.TTransport;
+
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
-
-import org.apache.hive.service.cli.thrift.TCloseOperationReq;
-import org.apache.hive.service.cli.thrift.TCloseSessionReq;
-import org.apache.hive.service.cli.thrift.TExecuteStatementReq;
-import org.apache.hive.service.cli.thrift.TExecuteStatementResp;
-import org.apache.hive.service.cli.thrift.TFetchResultsReq;
-import org.apache.hive.service.cli.thrift.TFetchResultsResp;
-import org.apache.hive.service.cli.thrift.TOpenSessionReq;
-import org.apache.hive.service.cli.thrift.TOpenSessionResp;
-import org.apache.hive.service.cli.thrift.TOperationHandle;
-import org.apache.hive.service.cli.thrift.TProtocolVersion;
-import org.apache.hive.service.cli.thrift.TRow;
-import org.apache.hive.service.cli.thrift.TRowSet;
-import org.apache.hive.service.cli.thrift.TSessionHandle;
-import org.apache.thrift.protocol.TBinaryProtocol;
-import org.apache.thrift.protocol.TProtocol;
-import org.apache.thrift.transport.TSocket;
-import org.apache.thrift.transport.TSaslClientTransport;
-import org.apache.thrift.transport.TTransport;
-
-import javax.security.sasl.Sasl;
-
-import java.util.*;
-
-import com.cloudera.beeswax.api.Query;
-import com.cloudera.beeswax.api.QueryHandle;
-import com.cloudera.beeswax.api.QueryState;
-import com.cloudera.beeswax.api.Results;
-import com.cloudera.impala.thrift.ImpalaHiveServer2Service;
-import com.cloudera.impala.thrift.ImpalaService;
+import java.util.Scanner;
 
 public class ImpalaThriftClientTest
 {
@@ -65,7 +46,7 @@ public class ImpalaThriftClientTest
         if(prop.getProperty(PORT) != null) {
         	port = Integer.valueOf(prop.getProperty(PORT));
         }
-        if(prop.getProperty(PRINCPAL) != null) {
+        if(StringUtils.isNotBlank(prop.getProperty(PRINCPAL))) {
         	String principal = prop.getProperty(PRINCPAL);
         	useKerberos = true;
         	if(!principal.contains("/")) {
@@ -135,16 +116,20 @@ public class ImpalaThriftClientTest
     private static void executeAndOutput(ImpalaService.Client client, String statement) 
     		throws Exception {
         Query query = new Query();
-        query.setQuery(statement); 
+        query.setQuery(statement);
             
         QueryHandle handle = client.query(query);
 		System.out.println("Submit query " + statement + ", Query Id : " + handle.getId());
-	            
+
 		QueryState queryState = null;
 		long start = System.currentTimeMillis();
 		while(true) {
-	        queryState = client.get_state(handle);
+            queryState = client.get_state(handle);
+            System.out.println(client.GetRuntimeProfile(handle));
+
 	        if(queryState == QueryState.FINISHED){
+                String log = client.get_log(handle.getLog_context());
+                System.out.println(log);
 	        	break;
 	        }
 	        if(queryState == QueryState.EXCEPTION){
@@ -159,9 +144,18 @@ public class ImpalaThriftClientTest
 		}
 
         boolean done = false;
+		boolean header = false;
+        ResultsMetadata results_metadata = client.get_results_metadata(handle);
+        System.out.println(results_metadata);
         while(queryState == QueryState.FINISHED && done == false) {
             Results results = client.fetch(handle,false,100);
-            
+            if (!header){
+                header  = true;
+                List<String> columns = results.columns;
+                for (String column : columns) {
+                    System.out.print(column + "\t");
+                }
+            }
             List<String> data = results.data;
                
             for(int i=0;i<data.size();i++) {
