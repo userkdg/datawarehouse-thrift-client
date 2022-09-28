@@ -1,6 +1,6 @@
 #Intro
 
-This is a Impala thrift client example, cause user can access impala use Hive jdbc / Impala jdbc or thrift API.
+This is a Impala/Hive thrift client example, cause user can access impala use Hive jdbc / Impala jdbc or thrift API.
 This client example contain all three methods, cause we need kerberos in our env, We need create another SASL Trsnaport in thrift examples.
 
 In normal condition, I access impala with impala-shell and HUE, they both use thrift api implements with Python, I some confition, we need access it with Java, this is where the project comes from.
@@ -18,6 +18,7 @@ Besides, you can access impala with jdbc, I think thrift api can do more and jdb
 #Warning
 If you want to use thrift client, you need confirm all .thrift files in src/main/thrift is the same version with server, If not, try to copy thrift files from server. Currently, My Impala server version is 2.6.0.
 
-#Connect
 
-Email : fengyuatad[AT]126[DOT]com
+#Fork
+
+Fork [impala-client](!https://github.com/terry-chelsea/impala-client-example.git)
